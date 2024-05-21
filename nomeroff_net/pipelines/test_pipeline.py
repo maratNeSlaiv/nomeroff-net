@@ -1,19 +1,8 @@
-"""number plate detection and reading pipeline
-
-Examples:
-    >>> from nomeroff_net import pipeline
-    >>> from nomeroff_net.tools import unzip
-    >>> number_plate_detection_and_reading = pipeline("number_plate_detection_and_reading", image_loader="opencv")
-    >>> results = number_plate_detection_and_reading(['./data/examples/oneline_images/example1.jpeg', './data/examples/oneline_images/example2.jpeg'])
-    >>> (images, images_bboxs, images_points, images_zones, region_ids,region_names, count_lines, confidences, texts) = unzip(results)
-    >>> print(texts)
-    (['AC4921CB'], ['RP70012', 'JJF509'])
-"""
 from typing import Any, Dict, Optional, List, Union
-
 import numpy as np
+
 import sys
-sys.path.append('/Users/maratorozaliev/Desktop/nomeroff-net')
+# sys.path.append('/Users/maratorozaliev/Desktop/nomeroff-net')
 
 from nomeroff_net.image_loaders import BaseImageLoader
 from nomeroff_net.pipelines.base import Pipeline, CompositePipeline, empty_method
@@ -122,28 +111,9 @@ class AnyNumberPlateDetectionAndReading(Pipeline, CompositePipeline):
         images_points, images_mline_boxes = unzip(self.number_plate_key_points_detection(unzip([images, images_bboxs]),
                                                                                          **forward_parameters))
         
-        # print(f'Is images_bboxs {images_bboxs}')
-        # print(f'is images_points {images_points}')
-        # print(type(images_points[0][0][0][0]))
 
-        import numpy as np
-        checker = ([[
-            [ np.float64(images_bboxs[0][0][0]), np.float64(images_bboxs[0][0][3]) ], 
-            [ np.float64(images_bboxs[0][0][0]), np.float64(images_bboxs[0][0][1]) ], 
-            [ np.float64(images_bboxs[0][0][2]), np.float64(images_bboxs[0][0][1]) ], 
-            [ np.float64(images_bboxs[0][0][2]), np.float64(images_bboxs[0][0][3]) ]
-        ]],)
-
-        zones, image_ids = crop_number_plate_zones_from_images(images, checker)
-
-        cv2.imwrite('trash_of_mine_5_2.jpg', zones[0])
+        zones, image_ids = crop_number_plate_zones_from_images(images, images_points)
    
-##############################################################################################################################################
-
-
-
-############################################################################################################################################
-
         if self.number_plate_classification is None or not len(zones):
             region_ids = [-1 for _ in zones]
             region_names = [self.default_label for _ in zones]
@@ -156,12 +126,6 @@ class AnyNumberPlateDetectionAndReading(Pipeline, CompositePipeline):
              confidences, predicted, preprocessed_np) = unzip(self.number_plate_classification(zones,
                                                                                                **forward_parameters))
             
-            print('''CHECK THIS OUT
-                  
-
-
-
-                ''', count_lines)
 
             zones = convert_multiline_images_to_one_line(
                 image_ids,
@@ -172,6 +136,7 @@ class AnyNumberPlateDetectionAndReading(Pipeline, CompositePipeline):
                 count_lines,
                 region_names,
             )
+
             (region_ids, region_names, count_lines,
             confidences, predicted, preprocessed_np) = unzip(self.number_plate_classification(zones,
                                                                                                **forward_parameters))
@@ -185,11 +150,6 @@ class AnyNumberPlateDetectionAndReading(Pipeline, CompositePipeline):
                                zones, image_ids,
                                images_bboxs, images,
                                images_points, preprocessed_np, **forward_parameters):
-
-##############################################################################################################################################
-
-
-##############################################################################################################################################
 
         number_plate_text_reading_res = unzip(
             self.number_plate_text_reading(unzip([zones,
@@ -242,9 +202,6 @@ def transform_image(image: np.array) -> np.array:
     image = image[..., ::-1]
     return image
 
-
-# pipline = CustomPipline('number_plate_detection_and_reading_runtime', image_loader='cv2')
-
 def get_text_and_region_one(pipline: CustomPipline, frame: np.array) -> tuple[str, str] | None:
     (images, images_bboxs, 
     images_points, images_zones, region_ids, 
@@ -253,7 +210,6 @@ def get_text_and_region_one(pipline: CustomPipline, frame: np.array) -> tuple[st
     if texts[0] and region_names:
         return texts[0][0], region_names[0][0], images_zones[0][0]
     return
-
 
 def get_text_and_region_one_v2(pipline: CustomPipline, frame: np.array) -> tuple[str, str] | None:
     (images, images_bboxs, 
@@ -265,19 +221,10 @@ def get_text_and_region_one_v2(pipline: CustomPipline, frame: np.array) -> tuple
 
 
 if __name__ == '__main__':
-    # frame = cv2.imread('/Users/maratorozaliev/Desktop/image_5_.jpg')
-
-    frame = cv2.imread('/Users/maratorozaliev/Desktop/au_.jpg')
+    frame = cv2.imread('/Users/maratorozaliev/Desktop/image_5_.jpg')
+    # frame = cv2.imread('/Users/maratorozaliev/Desktop/au_.jpg')
     pipline = CustomPipline('number_plate_detection_and_reading_runtime', image_loader='cv2')
-    
     res = get_text_and_region_one(pipline, frame)
-    print(res[0], res[1])
-
-    from PIL import Image
-    import torch
-    # from nomeroff_net.
-    parseq = torch.hub.load('baudm/parseq', 'parseq', pretrained=True).eval()
-    img = Image.open('/Users/maratorozaliev/Desktop/autoriaNumberplateOcrKg-2022-11-30/test/img/8155782_0_2.png').convert('RGB')
-
-
-    
+    print('''Result is:
+          
+          ''', res[0], res[1])
