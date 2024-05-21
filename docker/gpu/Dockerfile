@@ -10,7 +10,7 @@ RUN apt-get update
 
 # For opencv
 RUN apt-get install -y git
-RUN apt-get install libglib2.0-0
+RUN apt-get install -y libglib2.0-0
 RUN apt-get -y install libsm6
 RUN apt-get -y install libfontconfig1 libxrender1
 RUN apt-get -y install libxtst6

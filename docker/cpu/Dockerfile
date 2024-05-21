@@ -21,6 +21,7 @@ RUN apt-get install -y libgl1-mesa-glx
 RUN python3 -m pip install setuptools
 RUN python3 -m pip install "PyYAML>=5.3"
 RUN python3 -m pip install scikit_image
+RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install Cython
 RUN python3 -m pip install matplotlib
 RUN python3 -m pip install seaborn

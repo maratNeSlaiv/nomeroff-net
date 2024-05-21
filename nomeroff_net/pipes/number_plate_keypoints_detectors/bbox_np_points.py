@@ -38,6 +38,7 @@ class NpPointsCraft(object):
     np_points_craft Class
     git clone https://github.com/clovaai/CRAFT-pytorch.git
     """
+    
 
     def __init__(self):
         self.is_cuda = False

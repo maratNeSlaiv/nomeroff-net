@@ -18,6 +18,10 @@ from .number_plate_text_reading import NumberPlateTextReading
 from.number_plate_classification import NumberPlateClassification
 from nomeroff_net.tools.image_processing import crop_number_plate_zones_from_images, group_by_image_ids
 from nomeroff_net.tools import unzip
+from nomeroff_net.pipes.number_plate_localizators.yolo_v8_detector import YoloDetector
+from nomeroff_net.pipes.number_plate_multiline_extractors.multiline_np_extractor \
+    import convert_multiline_images_to_one_line, convert_multiline_to_one_line
+import cv2
 
 
 class NumberPlateDetectionAndReading(Pipeline, CompositePipeline):
@@ -124,6 +128,20 @@ class NumberPlateDetectionAndReading(Pipeline, CompositePipeline):
             (region_ids, region_names, count_lines,
              confidences, predicted, preprocessed_np) = unzip(self.number_plate_classification(zones,
                                                                                                **forward_parameters))
+            zones = convert_multiline_images_to_one_line(
+                image_ids,
+                images,
+                zones,
+                images_mline_boxes,
+                images_bboxs,
+                count_lines,
+                region_names,
+            )
+            (region_ids, region_names, count_lines,
+            confidences, predicted, preprocessed_np) = unzip(self.number_plate_classification(zones,
+                                                                                            **forward_parameters))
+
+
         return (region_ids, region_names, count_lines, confidences,
                 predicted, zones, image_ids, images_bboxs, images,
                 images_points, images_mline_boxes, preprocessed_np)
