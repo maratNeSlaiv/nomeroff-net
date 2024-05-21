@@ -275,7 +275,7 @@ if __name__ == '__main__':
 
     from PIL import Image
     import torch
-    from nomeroff_net.
+    # from nomeroff_net.
     parseq = torch.hub.load('baudm/parseq', 'parseq', pretrained=True).eval()
     img = Image.open('/Users/maratorozaliev/Desktop/autoriaNumberplateOcrKg-2022-11-30/test/img/8155782_0_2.png').convert('RGB')
 
