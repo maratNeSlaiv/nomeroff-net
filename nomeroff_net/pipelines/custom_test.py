@@ -1,8 +1,6 @@
 from typing import Any, Dict, Optional, List, Union
-import numpy as np
 
-import sys
-sys.path.append('/Users/maratorozaliev/Desktop/whole_suffering/nomeroff_net/')
+import numpy as np
 
 from nomeroff_net.image_loaders import BaseImageLoader
 from nomeroff_net.pipelines.base import Pipeline, CompositePipeline, empty_method
@@ -15,6 +13,13 @@ from nomeroff_net.tools import unzip
 from nomeroff_net.pipes.number_plate_multiline_extractors.multiline_np_extractor \
     import convert_multiline_images_to_one_line, convert_multiline_to_one_line
 import cv2
+from PIL import Image
+# from  import needed_function
+# from parseq-main import OCR_parseq
+# from strhub.Untitled_1 import OCR_parseq
+from nomeroff_net.pipelines.parseq_main_file import OCR_parseq
+
+
 
 
 class AnyNumberPlateDetectionAndReading(Pipeline, CompositePipeline):
@@ -105,15 +110,16 @@ class AnyNumberPlateDetectionAndReading(Pipeline, CompositePipeline):
         images = [self.image_loader.load(item) for item in inputs]
         return images
 
-    def forward_detection_np(self, inputs: Any, **forward_parameters: Dict):
+
+    def forward(self, inputs: Any, **forward_parameters: Dict):
         images_bboxs, images = unzip(self.number_plate_localization(inputs, **forward_parameters))
-        
         images_points, images_mline_boxes = unzip(self.number_plate_key_points_detection(unzip([images, images_bboxs]),
                                                                                          **forward_parameters))
         
-
         zones, image_ids = crop_number_plate_zones_from_images(images, images_points)
-   
+
+        cv2.imwrite('trash_of_mina_1.jpg' , zones[0])
+
         if self.number_plate_classification is None or not len(zones):
             region_ids = [-1 for _ in zones]
             region_names = [self.default_label for _ in zones]
@@ -126,7 +132,106 @@ class AnyNumberPlateDetectionAndReading(Pipeline, CompositePipeline):
              confidences, predicted, preprocessed_np) = unzip(self.number_plate_classification(zones,
                                                                                                **forward_parameters))
             
+            if count_lines[0] == 2:
+                
+                # SQUARE NUMBER PLATE RECOGNITION
 
+                image = zones[0]
+                image = Image.fromarray(image)
+
+                # Верх и низ (может понадобится потом)
+                width, height = image.size
+                midpoint = height // 2
+                upper_image = image.crop((0, 0, width, midpoint))
+                lower_image = image.crop((0, midpoint, width, height))
+
+                                
+                # Левая и правая картинка 
+                width, height = image.size
+                width_part1 = width // 3
+                width_part2 = width - width_part1  
+                box1 = (0,0, width_part1, height)
+                box2 = (width_part1, 0, width, height)
+                left_half = image.crop(box1)
+                right_half = image.crop(box2)
+
+                # Лева и право делим еще пополам каждую
+                width, height = left_half.size
+                midpoint = height // 2
+                upper_left = left_half.crop((0, 0, width, midpoint))
+                lower_left = left_half.crop((0, midpoint, width, height))
+
+                width, height = right_half.size
+                midpoint = height // 2
+                upper_right = right_half.crop((0, 0, width, midpoint))
+                lower_right = right_half.crop((0, midpoint, width, height))
+      
+                # upper_left.save('trash_1_upper_left_1.jpg')
+                # upper_right.save('trash_1_upper_right_1.jpg')
+                # lower_left.save('trash_1_lower_left_1.jpg')
+                # lower_right.save('trash_1_lower_right_1.jpg')
+                # upper_image.save('trash_1_upper_1.jpg')
+                # lower_image.save('trash_1_lower_1.jpg')
+
+                # Проверка левого верхнего угла 
+                important_check = OCR_parseq(upper_left)
+
+                # функция чтобы оставить только символы и цифры
+                import re
+                pattern = re.compile(r'[^a-zA-Z0-9]')
+                important_check = pattern.sub('', important_check)
+                    
+                # Проверка на две цифры в левом верхнем углу (кыргызский номер - регион)
+                pattern = re.compile(r'^\d{2}$')
+                if pattern.match(important_check):
+                    texts = [[
+                        important_check + 
+                        # " <- region " +
+                        str(OCR_parseq(upper_right)) +
+                        # + '  |||||   ' + 
+                        str(OCR_parseq(lower_right)) 
+                        # + "-> Not my output ->"
+                        ,
+                    ]]
+                else:
+                    # Только одна Буква или цифра (абхазский номер)
+                    pattern = re.compile(r'^[a-zA-Z0-9]$')
+                    if pattern.match(important_check):
+                        texts = [[
+                            # '<- not my output <- ' +
+                        str(OCR_parseq(upper_image)) +  
+                        # + '  |||||   ' + 
+                        str(OCR_parseq(lower_image)),
+                        # + "-> Not my output ->",
+                        ]]
+
+                    # Пока тут только армянские номера
+                    else:
+                        texts = [[
+                            # '<- not my output <- ' +
+                            str(OCR_parseq(upper_right)) + 
+                            # '  |||||   ' + 
+                            str(OCR_parseq(lower_image))
+                            #   + "-> Not my output ->",
+                        ]]
+
+
+                print('THE WORK OF THE OCR_PARSEQ MODEL')
+                
+                return [images, images_bboxs,
+                      images_points, zones,
+                      region_ids, region_names,
+                      count_lines, confidences, texts]
+
+
+                # count = 0
+
+                # Leave of a quadratic
+            
+                
+
+
+            
             zones = convert_multiline_images_to_one_line(
                 image_ids,
                 images,
@@ -136,16 +241,26 @@ class AnyNumberPlateDetectionAndReading(Pipeline, CompositePipeline):
                 count_lines,
                 region_names,
             )
-
+            
             (region_ids, region_names, count_lines,
             confidences, predicted, preprocessed_np) = unzip(self.number_plate_classification(zones,
                                                                                                **forward_parameters))
+        print('''ITS THE WORK OF RECTANGULAR MODEL
+              
+              
+              ''')
+        return self.rectangular_recognition(region_ids, region_names,
+                                           count_lines, confidences,
+                                           zones, image_ids,
+                                           images_bboxs, images,
+                                           images_points, preprocessed_np, **forward_parameters)
+    
+    def quadratic_recognition(self, image: Any):
+        # Put the OCR_parseq recognition code here, when all tests are passed
+        return
+    
 
-        return (region_ids, region_names, count_lines, confidences,
-                predicted, zones, image_ids, images_bboxs, images,
-                images_points, images_mline_boxes, preprocessed_np)
-
-    def forward_recognition_np(self, region_ids, region_names,
+    def rectangular_recognition(self, region_ids, region_names,
                                count_lines, confidences,
                                zones, image_ids,
                                images_bboxs, images,
@@ -162,25 +277,10 @@ class AnyNumberPlateDetectionAndReading(Pipeline, CompositePipeline):
             texts = []
         (region_ids, region_names, count_lines, confidences, texts, zones) = \
             group_by_image_ids(image_ids, (region_ids, region_names, count_lines, confidences, texts, zones))
-        return unzip([images, images_bboxs,
+        return [images, images_bboxs,
                       images_points, zones,
                       region_ids, region_names,
-                      count_lines, confidences, texts])
-
-    def forward(self, inputs: Any, **forward_parameters: Dict) -> Any:
-        """
-        TODO: split into two methods so that there is no duplication of code
-        """
-        (region_ids, region_names,
-         count_lines, confidences, predicted,
-         zones, image_ids,
-         images_bboxs, images,
-         images_points, images_mline_boxes, preprocessed_np) = self.forward_detection_np(inputs, **forward_parameters)
-        return self.forward_recognition_np(region_ids, region_names,
-                                           count_lines, confidences,
-                                           zones, image_ids,
-                                           images_bboxs, images,
-                                           images_points, preprocessed_np, **forward_parameters)
+                      count_lines, confidences, texts]
 
     @empty_method
     def postprocess(self, inputs: Any, **postprocess_parameters: Dict) -> Any:
@@ -197,34 +297,35 @@ class CustomPipline(AnyNumberPlateDetectionAndReading):
         images = [self.custom_transform_image(item) for item in inputs]
         return images
 
-
-def transform_image(image: np.array) -> np.array:
-    image = image[..., ::-1]
-    return image
-
-def get_text_and_region_one(pipline: CustomPipline, frame: np.array) -> tuple[str, str] | None:
+def get_text_and_region(pipline: CustomPipline, frame: np.array) -> tuple[str, str] | None:
     (images, images_bboxs, 
     images_points, images_zones, region_ids, 
     region_names, count_lines, 
-    confidences, texts) = unzip(pipline([frame]))
+    confidences, texts) = pipline([frame])
+
+    print('''WE GOT THERE MAAAN!
+          
+          ''')
+
     if texts[0] and region_names:
-        return texts[0][0], region_names[0][0], images_zones[0][0]
+        return texts[0][0] # , region_names[0][0], images_zones[0][0]
     return
-
-def get_text_and_region_one_v2(pipline: CustomPipline, frame: np.array) -> tuple[str, str] | None:
-    (images, images_bboxs, 
-    images_points, images_zones, region_ids, 
-    region_names, count_lines, 
-    confidences, texts) = unzip(pipline([frame]))
-    if texts[0] and region_names:
-        return texts[0][0], region_names[0][0]
 
 
 if __name__ == '__main__':
-    frame = cv2.imread('/Users/maratorozaliev/Desktop/image_5_.jpg')
-    # frame = cv2.imread('/Users/maratorozaliev/Desktop/au_.jpg')
     pipline = CustomPipline('number_plate_detection_and_reading_runtime', image_loader='cv2')
-    res = get_text_and_region_one(pipline, frame)
-    print('''Result is:
-          
-          ''', res[0], res[1])
+    frame = cv2.imread('/Users/maratorozaliev/Desktop/image_5_.jpg')
+    res = get_text_and_region(pipline, frame)
+    print(res)
+    # print(res[0], res[1])
+
+
+    # Уберем слэши тэги и тирешки если вдруг неправильно прочла 
+    # res = str(res[0]) + str(res[1])
+    import re
+    pattern = re.compile(r'[^a-zA-Z0-9]')
+    res = pattern.sub('', res)
+    # cv2.imwrite('/Users/adilet/nomeroff-net/media/2_res.jpg', res[2])
+    print(res)
+
+    # print(res)
